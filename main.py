@@ -1,105 +1,155 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import zscore
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 import seaborn as sns
-# Load the data into a pandas DataFrame
-data = pd.read_csv("Student Mental health.csv")  # Replace 'data.csv' with your actual file path
+from scipy import stats
 
-# Display the first few rows of the dataframe
-print(data.head())
+def visualize(df):
+    #Graph age distribution
+    plt.hist(df['age'], bins='auto', color='skyblue', edgecolor='black')
+    plt.title('Age Distribution')
+    plt.xlabel('age')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
 
-# Clean column names (if necessary)
-data.columns = data.columns.str.strip()  # Removing extra spaces if any
+    #Graph gpa distribution
+    plt.hist(df['gpa'], bins=5, color='salmon', edgecolor='black')
+    plt.title('gpa Distribution')
+    plt.xlabel('GPA')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
 
-# Basic statistics: Count of people with Depression, Anxiety, Panic Attack
-depression_count = data['Do you have Depression?'].value_counts().get('Yes', 0)
-anxiety_count = data['Do you have Anxiety?'].value_counts().get('Yes', 0)
-panic_attack_count = data['Do you have Panic attack?'].value_counts().get('Yes', 0)
+    #Graph academic year distribution
+    plt.hist(df['academic_year'], bins=4, color='green', edgecolor='black')
+    plt.title('academic year Distribution')
+    plt.xlabel('Academic Year')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
 
-# Count of people seeking specialist treatment
-seeking_specialist_count = data['Did you seek any specialist for a treatment?'].value_counts().get('Yes', 0)
+    #Graph course distribution
+    course_counts = df['course'].value_counts().sort_values(ascending=False)
+    plt.bar(course_counts.index, course_counts.values, color='yellow')
+    plt.xlabel('Course')
+    plt.ylabel('Frequency')
+    plt.title('Course Frequency')
+    plt.xticks(course_counts.index)
+    plt.show()
 
-# Display the results
-print(f"People with Depression: {depression_count}")
-print(f"People with Anxiety: {anxiety_count}")
-print(f"People with Panic Attacks: {panic_attack_count}")
-print(f"People who sought specialist treatment: {seeking_specialist_count}")
+    print("\nSkewness of columns\n")
+    print(f"\ngender: {df['gender'].skew()}")
+    print(f"\nage: {df['age'].skew()}")
+    print(f"\ncourse: {df['course'].skew()}")
+    print(f"\nacademic year: {df['academic_year'].skew()}")
+    print(f"\ngpa: {df['gpa'].skew()}")
 
-# Example of filtering rows with specific conditions
-depression_data = data[data['Do you have Depression?'] == 'Yes']
-anxiety_data = data[data['Do you have Anxiety?'] == 'Yes']
+    correlation_matrix = df.corr()
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+    plt.figure(figsize=(10, 10))
+    plt.show()
 
-# Show how many students have both depression and anxiety
-both_depression_anxiety = len(depression_data[depression_data['Do you have Anxiety?'] == 'Yes'])
-print(f"People with both Depression and Anxiety: {both_depression_anxiety}")
-
-# Plotting All Graphs in One Figure
-fig, axs = plt.subplots(2, 2, figsize=(14, 10))  # 2 rows, 2 columns
-
-# First plot: Count of People with Depression
-axs[0, 0].bar(data['Do you have Depression?'].value_counts().index,
-              data['Do you have Depression?'].value_counts().values,
-              color=['skyblue', 'salmon'])
-axs[0, 0].set_title('Count of People with Depression')
-axs[0, 0].set_xlabel('Depression Status')
-axs[0, 0].set_ylabel('Count')
-
-# Second plot: Count of People with Anxiety
-axs[0, 1].bar(data['Do you have Anxiety?'].value_counts().index,
-              data['Do you have Anxiety?'].value_counts().values,
-              color=['lightgreen', 'orange'])
-axs[0, 1].set_title('Count of People with Anxiety')
-axs[0, 1].set_xlabel('Anxiety Status')
-axs[0, 1].set_ylabel('Count')
-
-# Third plot: People Seeking Specialist Treatment
-axs[1, 0].bar(data['Did you seek any specialist for a treatment?'].value_counts().index,
-              data['Did you seek any specialist for a treatment?'].value_counts().values,
-              color=['purple', 'yellow'])
-axs[1, 0].set_title('People Seeking Specialist Treatment')
-axs[1, 0].set_xlabel('Seeking Treatment')
-axs[1, 0].set_ylabel('Count')
-
-# Fourth plot: Mental Health by Course
-mental_health_by_course = data.groupby('What is your course?').agg({
-    'Do you have Depression?': lambda x: (x == 'Yes').sum(),
-    'Do you have Anxiety?': lambda x: (x == 'Yes').sum()
-})
-mental_health_by_course.plot(kind='bar', ax=axs[1, 1])
-axs[1, 1].set_title('Mental Health by Course')
-axs[1, 1].set_xlabel('Course')
-axs[1, 1].set_ylabel('Count')
+    #check outliers(only necessary for age in this dataset due to its size)
+    df['age_zscore'] = zscore(df['age'])
+    plt.figure(figsize=(10, 10))
+    sns.histplot(df['age_zscore'], kde=True, label='Z-score of age', color='green', stat='density')
+    plt.title('Z-score Distribution for Age')
+    plt.xlabel('Z-score')
+    plt.ylabel('Density')
+    plt.show()
+    df.drop(columns=['age_zscore'], inplace=True)
 
 
-data['Depression_flag'] = data['Do you have Depression?'].apply(lambda x: 1 if x == 'Yes' else 0)
-plt.figure(figsize=(8, 6))
-sns.scatterplot(x='Age', y='Depression_flag', data=data)
-plt.title('Age vs Depression')
-plt.xlabel('Age')
-plt.ylabel('Depression (Yes=1, No=0)')
-plt.show()
+def encode(df):
 
-# Heatmap of correlation between variables (numeric)
-correlation_matrix = data[['Age', 'Depression_flag', 'Anxiety_flag']].corr()
-plt.figure(figsize=(8, 6))
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
-plt.title('Correlation Matrix')
-plt.show()
+    #Encode answer columns
+    yes_no_map = {'Yes': 1, 'No': 0, 'yes': 1, 'no': 0}
+    df['marital_status'] = df['marital_status'].map(yes_no_map)
+    df['depression'] = df['depression'].map(yes_no_map)
+    df['anxiety'] = df['anxiety'].map(yes_no_map)
+    df['panic_attack'] = df['panic_attack'].map(yes_no_map)
+    df['treatment'] = df['treatment'].map(yes_no_map)
+
+    #Encode gender with one-hot encoding
+    gender_map = {'Male': 1, 'Female': 0}
+    df['gender'] = df['gender'].map(gender_map)
+
+    #Encode academic_year
+    year_mapping = {"year 1": 1,"Year 1": 1, "year 2": 2,"Year 2": 2,"year 3": 3, "Year 3": 3,"Year 4": 4, "year 4": 4}
+    df['academic_year'] = df['academic_year'].map(year_mapping)
+
+    #Encode course with label encoding
+    label_encoder = LabelEncoder()
+    df['course'] = label_encoder.fit_transform(df['course'])
+
+    # Scale age column
+    scaler = MinMaxScaler()
+
+    #Encode gpa
+    gpa_mapping = {
+        '3.50 - 4.00 ': 5,
+        '3.50 - 4.00': 5,
+        '3.00 - 3.49': 4,
+        '2.50 - 2.99': 3,
+        '2.00 - 2.49': 2,
+        '0 - 1.99': 1
+    }
+
+    df['gpa'] = df['gpa'].map(gpa_mapping)
+
+    #Normalize to [0,1]
+    df['gpa'] = scaler.fit_transform(df[['gpa']])
+    #Normalize to [0,1]
+    df['age'] = scaler.fit_transform(df[['age']])
+
+    #Encode date        --> Proves unnecessary from sample data
+    #df['date'] = df['date'].str.split(' ').str[0]
+    #df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y')
+
+    #df['year'] = df['date'].dt.year
+    #df['month'] = df['date'].dt.month
+    #df['day'] = df['date'].dt.day
+    #df.drop(columns=['date'], inplace=True)
+    df.drop(columns=['date'], inplace=True)
+
+    print(f"\nNull cell count after encoding: \n{df.isnull().sum()}")
+    return df
+
+def fill_null(df):
+    #check for missing data and fill missing with mean (This dataset only has one row with age missing)
+    print(f"\nNull cell count: \n{df.isnull().sum()}")
+    df["age"] = df["age"].fillna(df["age"].mean())
+    print(df)
+    print(f"\nNull cell count after fill: \n{df.isnull().sum()}")
+    return df
+
+def data_preprocessing(df):
+    # check for missing data and fill missing with mean (This dataset only has one row with age missing)
+    fill_null(df)
+    encode(df)
+    visualize(df)
+
+    return df
+
+if __name__ == '__main__':
+    pd.set_option('display.max_columns', 20)
+
+    df = pd.read_csv('student_mental_health.csv')
+    print(df)
 
 
-# Adjust layout and show all graphs at once
-plt.tight_layout()
-plt.show()  # Display all plots together
+    #Rename columns for better handling
+    df.rename(columns={'Timestamp': 'date', 'Choose your gender': 'gender', 'Age': 'age',
+                       'What is your course?': 'course', 'Your current year of Study': 'academic_year',
+                       'What is your CGPA?': 'gpa', 'Marital status': 'marital_status',
+                       'Do you have Depression?': 'depression', 'Do you have Anxiety?': 'anxiety',
+                       'Do you have Panic attack?': 'panic_attack',
+                       'Did you seek any specialist for a treatment?': 'treatment'}, inplace=True)
 
+    df = data_preprocessing(df)
+    print(f"\nResult dataset:\n{df}")
+    print(df.describe())
 
-# Eğer 'Date' veya benzeri bir tarih sütunu varsa, zamanla depresyon oranını analiz edebiliriz
-data['Date'] = pd.to_datetime(data['Date'])  # Eğer tarih varsa
-monthly_depression = data.groupby(data['Date'].dt.to_period('M'))['Do you have Depression?'].apply(lambda x: (x == 'Yes').mean())
-
-# Zamanla değişimi görmek için grafik
-plt.figure(figsize=(10, 6))
-monthly_depression.plot(kind='line', marker='o', color='blue')
-plt.title('Monthly Depression Rate')
-plt.xlabel('Month')
-plt.ylabel('Depression Rate')
-plt.grid(True)
-plt.show()
