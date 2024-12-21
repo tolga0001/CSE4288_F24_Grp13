@@ -2,13 +2,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder, StandardScaler
 import seaborn as sns
 from scipy import stats
 
 def visualize(df):
     #Graph age distribution
-    plt.hist(df['age'], bins='auto', color='skyblue', edgecolor='black')
+    plt.hist(df['age'], bins=8, color='skyblue', edgecolor='black')
     plt.title('Age Distribution')
     plt.xlabel('age')
     plt.ylabel('Frequency')
@@ -16,9 +16,44 @@ def visualize(df):
     plt.show()
 
     #Graph gpa distribution
-    plt.hist(df['gpa'], bins=5, color='salmon', edgecolor='black')
+    plt.hist(df['gpa'], bins='auto', color='salmon', edgecolor='black')
     plt.title('gpa Distribution')
     plt.xlabel('GPA')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+    plt.hist(df['sleep_quality'], bins=5, color='salmon', edgecolor='black')
+    plt.title('sleep quality Distribution')
+    plt.xlabel('Sleep Quality')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+    plt.hist(df['engagement'], bins=5, color='salmon', edgecolor='black')
+    plt.title('Academic Engagement Distribution')
+    plt.xlabel('Engagement')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+    plt.hist(df['stress_level'], bins=5, color='salmon', edgecolor='black')
+    plt.title('Academic Stress Level Distribution')
+    plt.xlabel('Stress Level')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+    plt.hist(df['study_hours'], bins=19, color='salmon', edgecolor='black')
+    plt.title('Study Hours Per Week Distribution')
+    plt.xlabel('GPA')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+    plt.hist(df['symptom'], bins=7, color='salmon', edgecolor='black')
+    plt.title('Mental health problem Symptoms per week')
+    plt.xlabel('Symptoms per week')
     plt.ylabel('Frequency')
     plt.grid(True)
     plt.show()
@@ -62,20 +97,7 @@ def visualize(df):
     plt.show()
     df.drop(columns=['age_zscore'], inplace=True)
 
-    plt.figure(figsize=(10, 10))
-    sns.scatterplot(x='age', y='academic_year', data=df)
-    plt.title('Scatter Plot: Age against Academic Year')
-    plt.show()
-
 def encode(df):
-
-    #Encode answer columns
-    yes_no_map = {'Yes': 1, 'No': 0, 'yes': 1, 'no': 0}
-    df['marital_status'] = df['marital_status'].map(yes_no_map)
-    df['depression'] = df['depression'].map(yes_no_map)
-    df['anxiety'] = df['anxiety'].map(yes_no_map)
-    df['panic_attack'] = df['panic_attack'].map(yes_no_map)
-    df['treatment'] = df['treatment'].map(yes_no_map)
 
     #Encode gender with one-hot encoding
     gender_map = {'Male': 1, 'Female': 0}
@@ -92,32 +114,44 @@ def encode(df):
     # Scale age column
     scaler = MinMaxScaler()
 
-    #Encode gpa
-    gpa_mapping = {
-        '3.50 - 4.00 ': 5,
-        '3.50 - 4.00': 5,
-        '3.00 - 3.49': 4,
-        '2.50 - 2.99': 3,
-        '2.00 - 2.49': 2,
-        '0 - 1.99': 1
-    }
-
-    df['gpa'] = df['gpa'].map(gpa_mapping)
-
     #Normalize to [0,1]
     df['gpa'] = scaler.fit_transform(df[['gpa']])
-    #Normalize to [0,1]
+
+    df['academic_year'] = scaler.fit_transform(df[['academic_year']])
+
+    df['course'] = scaler.fit_transform(df[['course']])
+
+    #df['age'] = scaler.fit_transform(df[['age']])
     df['age'] = scaler.fit_transform(df[['age']])
 
-    #Encode date        --> Proves unnecessary from sample data
-    #df['date'] = df['date'].str.split(' ').str[0]
-    #df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y')
+    df['engagement'] = scaler.fit_transform(df[['engagement']])
 
-    #df['year'] = df['date'].dt.year
-    #df['month'] = df['date'].dt.month
-    #df['day'] = df['date'].dt.day
-    #df.drop(columns=['date'], inplace=True)
-    df.drop(columns=['date'], inplace=True)
+    df['stress_level'] = scaler.fit_transform(df[['stress_level']])
+
+    df['study_hours'] = scaler.fit_transform(df[['study_hours']])
+
+    df['sleep_quality'] = scaler.fit_transform(df[['sleep_quality']])
+
+    df['symptom'] = scaler.fit_transform(df[['symptom']])
+
+    #Encode date handle two different date types
+    df['date_1'] = df['date'].where(df['date'].str.contains('/'), None)
+    df['date_2'] = df['date'].where(df['date'].str.contains('-'), None)
+
+    df['date_1'] = pd.to_datetime(df['date_1'], errors='coerce', dayfirst=True)
+
+    df['date_2'] = pd.to_datetime(df['date_2'], errors='coerce')
+
+    df['date'] = df['date_1'].fillna(df['date_2'])
+
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+
+    df['year'] = label_encoder.fit_transform(df['year'])
+    df['month'] = label_encoder.fit_transform(df['month'])
+
+    df.drop(columns=['date', 'date_1', 'date_2'], inplace=True)
+    df.drop(columns=['month', 'year'], inplace=True)
 
     print(f"\nNull cell count after encoding: \n{df.isnull().sum()}")
     return df
@@ -126,6 +160,7 @@ def fill_null(df):
     #check for missing data and fill missing with mean (This dataset only has one row with age missing)
     print(f"\nNull cell count: \n{df.isnull().sum()}")
     df["age"] = df["age"].fillna(df["age"].mean())
+    df["gpa"] = df["gpa"].fillna(df["gpa"].mean())
     print(df)
     print(f"\nNull cell count after fill: \n{df.isnull().sum()}")
     return df
@@ -134,28 +169,35 @@ def data_preprocessing(df):
     # check for missing data and fill missing with mean (This dataset only has one row with age missing)
     fill_null(df)
     encode(df)
-    visualize(df)
+    #visualize(df)
 
     return df
 
 if __name__ == '__main__':
     pd.set_option('display.max_columns', 20)
 
-    df = pd.read_csv('student_mental_health.csv')
+    #df = pd.read_csv('student_mental_health.csv')
+    df = pd.read_csv('mentalhealth_dataset.csv')
     print(df)
 
 
     #Rename columns for better handling
-    df.rename(columns={'Timestamp': 'date', 'Choose your gender': 'gender', 'Age': 'age',
-                       'What is your course?': 'course', 'Your current year of Study': 'academic_year',
-                       'What is your CGPA?': 'gpa', 'Marital status': 'marital_status',
-                       'Do you have Depression?': 'depression', 'Do you have Anxiety?': 'anxiety',
-                       'Do you have Panic attack?': 'panic_attack',
-                       'Did you seek any specialist for a treatment?': 'treatment'}, inplace=True)
+    df.rename(columns={'Timestamp': 'date', 'Gender': 'gender', 'Age': 'age',
+                       'Course': 'course', 'YearOfStudy': 'academic_year',
+                       'CGPA': 'gpa', 'Depression': 'depression', 'Anxiety': 'anxiety',
+                       'PanicAttack': 'panic_attack','SpecialistTreatment': 'treatment',
+              'SymptomFrequency_Last7Days': 'symptom', 'SleepQuality': 'sleep_quality',
+                       'StudyStressLevel': 'stress_level', 'StudyHoursPerWeek': 'study_hours', 'AcademicEngagement': 'engagement',},
+              inplace=True)
+
+    #Drop repeated column
+    df.drop(columns=['HasMentalHealthSupport'], inplace=True)
 
     df = data_preprocessing(df)
     print(f"\nResult dataset:\n{df}")
     print(df.describe())
+    visualize(df)
 
     df.to_csv('processed_data.csv', index=False)
+
 
