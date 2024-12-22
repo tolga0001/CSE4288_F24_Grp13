@@ -97,6 +97,8 @@ if __name__ == '__main__':
 
     visualize(df)
 
+    visualize(df)
+
     #Check for null
     print(df.isnull().any())
     print(df.columns)
