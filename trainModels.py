@@ -7,7 +7,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
-
+from sklearn.decomposition import PCA
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
 
 def train_models(X, y, target_columns):
     random_state = 42
@@ -50,6 +52,45 @@ def plot_feature_importance(model, feature_names):
         plt.xlabel('Feature')
         plt.ylabel('Importance')
         plt.show()
+
+# Test function to adjust the optimal parameter for the algorithm chosen.
+def choose_best_param(X, y, model, params):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # params must be typed in key-value pair manner as an argument.
+    grid_search = GridSearchCV(model, param_grid=params, cv=10, scoring='f1_macro', n_jobs=4)
+    grid_search.fit(X, y)
+    best_params = grid_search.best_params_ 
+    # Displaying the optimal parameter combination
+    print(best_params)
+
+# It aims to discard the outliers from the dataset to tune the performance of the algorithm
+def pca_analysis(df):
+    # Exclude the target column (assuming it's the last column) and standardize the data
+    X_scaled = df.iloc[:, :-1]
+    # Fit PCA model
+    pca = PCA(n_components=2)  # Reducing to 2 components for visualization
+    X_pca = pca.fit_transform(X_scaled)
+    # Calculate the distance from the center (origin) in PCA space
+    distances = np.linalg.norm(X_pca, axis=1)
+    # Define a threshold for outliers (e.g., 95th percentile)
+    threshold = np.percentile(distances, 80)
+    # Identify outliers
+    outliers = distances > threshold
+    # Plotting PCA result and outliers
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], label="Data Points", color="blue")
+    plt.scatter(X_pca[outliers, 0], X_pca[outliers, 1], label="Outliers", color="red")
+    plt.title("PCA: Outlier Detection")
+    plt.xlabel("Principal Component 1")
+    plt.ylabel("Principal Component 2")
+    plt.legend()
+    plt.show()
+    # Print the outlier indices
+    print("Outlier Indices:", np.where(outliers)[0])
+    # Return the dataset without outliers
+    df_no_outliers = df[~outliers]
+    return df_no_outliers
+
+
 
 if __name__ == '__main__':
     pd.set_option('display.max_columns', 20)
