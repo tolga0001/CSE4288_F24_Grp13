@@ -2,6 +2,32 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
+def check_outlier(df):
+    threshold = 1.5
+    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+
+    for col in numeric_cols:
+        # Calculate Q1 (25th percentile) and Q3 (75th percentile)
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+
+        # Define outlier boundaries
+        lower_bound = Q1 - threshold * IQR
+        upper_bound = Q3 + threshold * IQR
+
+        # Identify outliers
+        outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)]
+        outlier_count = len(outliers)
+
+        if outlier_count > 0:
+            print(f"Column '{col}': {outlier_count} outliers removed.")
+
+        # Remove outliers
+        df = df[(df[col] >= lower_bound) & (df[col] <= upper_bound)]
+
+    return df
+
 def visualize(df):
     df.hist(bins='auto', figsize=(20, 20))
     plt.tight_layout()
@@ -44,7 +70,7 @@ def encode(df):
 if __name__ == '__main__':
     pd.set_option('display.max_columns', 70)
 
-    df = pd.read_csv('mentalhealth_dataset_2.csv')
+    df = pd.read_csv('combined_mentalhealth_dataset.csv')
 
     #Rename columns
     df.rename(columns={
@@ -96,6 +122,8 @@ if __name__ == '__main__':
     df = encode(df)
 
     visualize(df)
+
+    df = check_outlier(df)
 
     visualize(df)
 
