@@ -2,45 +2,51 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.metrics import f1_score, precision_score, recall_score, classification_report, accuracy_score
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 
 
 def train_models(X, y, target_columns):
     random_state = 42
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state)
 
-    knn = KNeighborsClassifier(n_neighbors=5)
-
+    knn = KNeighborsRegressor(n_neighbors=5)
     knn.fit(X_train, y_train)
+    y_pred_knn = knn.predict(X_test)
 
-    y_pred = knn.predict(X_test)
+    mse_knn = mean_squared_error(y_test, y_pred_knn)
+    r2_knn = r2_score(y_test, y_pred_knn)
+    print(f'KNN - Mean Squared Error: {mse_knn:.4f}')
+    print(f'KNN - R-squared: {r2_knn:.4f}')
 
-    # Evaluate the model
-    accuracy = accuracy_score(y_test, y_pred)
-    print(f'Accuracy: {accuracy:.4f}')
+    dt = DecisionTreeRegressor(random_state=random_state)
+    dt.fit(X_train, y_train)
+    y_pred_dt = dt.predict(X_test)
 
-def plot_confusion_matrix(y_true, y_pred, model_name):
-    from sklearn.metrics import confusion_matrix
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
-    plt.title(f'Confusion Matrix for {model_name} - Predicted vs Actual')
-    plt.ylabel('True Labels')
-    plt.xlabel('Predicted Labels')
-    plt.show()
+    mse_dt = mean_squared_error(y_test, y_pred_dt)
+    r2_dt = r2_score(y_test, y_pred_dt)
+    print(f'Decision Tree - Mean Squared Error: {mse_dt:.4f}')
+    print(f'Decision Tree - R-squared: {r2_dt:.4f}')
+
+    rf = RandomForestRegressor(random_state=random_state)
+    rf.fit(X_train, y_train)
+    y_pred_rf = rf.predict(X_test)
+
+    mse_rf = mean_squared_error(y_test, y_pred_rf)
+    r2_rf = r2_score(y_test, y_pred_rf)
+    print(f'Random Forest - Mean Squared Error: {mse_rf:.4f}')
+    print(f'Random Forest - R-squared: {r2_rf:.4f}')
 
 def plot_feature_importance(model, feature_names):
-    # Only works for tree-based models (like DecisionTreeClassifier)
-    if isinstance(model, DecisionTreeClassifier):
+    if isinstance(model, DecisionTreeRegressor) or isinstance(model, RandomForestRegressor):
         importance = model.feature_importances_
         feature_importance = pd.Series(importance, index=feature_names).sort_values(ascending=False)
         plt.figure(figsize=(8, 6))
         feature_importance.plot(kind='bar')
-        plt.title('Feature Importance - Decision Tree Model')
+        plt.title('Feature Importance')
         plt.xlabel('Feature')
         plt.ylabel('Importance')
         plt.show()
@@ -50,9 +56,9 @@ if __name__ == '__main__':
 
     df = pd.read_csv('processed_data.csv')
 
-    target_column = ['depression']
+    target_column = ['stress_level']
     x = df.drop(columns=target_column)
     y = df[target_column].values.ravel()
-    print(df['depression'].value_counts())
+    print(df['stress_level'].describe())
 
     train_models(x, y, target_column)
