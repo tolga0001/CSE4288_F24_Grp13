@@ -9,9 +9,8 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.decomposition import PCA
 from sklearn.model_selection import GridSearchCV
-from sklearn.ensemble import RandomForestClassifier
 
-def train_models(X, y, target_columns):
+def train_models(X, y):
     random_state = 42
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state)
 
@@ -103,3 +102,21 @@ if __name__ == '__main__':
     print(df['stress_level'].describe())
 
     train_models(x, y, target_column)
+
+    target_column = ['academic_year']
+    # IQR hesaplama
+    Q1 = df[target_column].quantile(0.25)
+    Q3 = df[target_column].quantile(0.75)
+    IQR = Q3 - Q1
+
+    # Aykırı değerlerin tespiti
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    print(f"lower_bound is {lower_bound}")
+    print(f"upper_bound is {upper_bound}")
+
+    # Aykırı değerlerin filtrelenmesi
+    outliers = df[(df[target_column] < lower_bound) | (df[target_column] > upper_bound)]
+    print(outliers)  # Aykırı değerlerin bulunduğu satırlar
+

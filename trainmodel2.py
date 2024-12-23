@@ -1,177 +1,114 @@
 import pandas as pd
-from matplotlib import pyplot as plt
-from scipy.constants import grain
-from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, confusion_matrix
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.neighbors import KNeighborsClassifier
+import matplotlib.pyplot as plt
 
-if __name__ == '__main__':
-    #Best Hyperparameters For KNN :=
-    # {'algorithm': 'auto', 'leaf_size': 10, 'metric': 'manhattan', 'n_neighbors': 1, 'p': 1, 'weights': 'uniform'}
+# Random State for Reproducibility
+random_state = 12
 
-    grid_knn = param_grid_knn = {
-        'n_neighbors': [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21],
-        'weights': ['uniform', 'distance'],
-        'metric': ['euclidean', 'manhattan', 'minkowski', 'chebyshev'],
-        'p': [1, 2, 3],
-        'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
-        'leaf_size': [10, 20, 30, 40, 50, 60],
-    }
+# Load dataset
+df = pd.read_csv('processed_data_2.csv')
 
-    best_params = {
-        'algorithm': 'auto', 'leaf_size': 10, 'metric': 'manhattan', 'n_neighbors': 1, 'p': 1, 'weights': 'uniform'
-    }
+# Check for missing values (Basic Data Preprocessing)
+if df.isnull().sum().any():
+    print("Warning: Dataset contains missing values.")
+    df = df.dropna()  # Handle missing values by dropping rows (optional)
 
-    random_state = 12
+# KNN Classifier
+print("\nKNN for GPA Prediction\n")
 
-    df = pd.read_csv('processed_data_2.csv')
+# Define features (X) and target (y) for GPA prediction
+X = df.drop('gpa', axis=1)
+y = df['gpa']
 
-    X = df.drop('gpa', axis=1)
-    y = df['gpa']
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
+# Best hyperparameters from manual tuning or GridSearchCV
+best_params_knn = {'algorithm': 'auto', 'leaf_size': 10, 'metric': 'manhattan', 'n_neighbors': 1, 'weights': 'uniform'}
 
-    #knn_classifier = KNeighborsClassifier()
+# Initialize KNN model with best hyperparameters
+knn_model = KNeighborsClassifier(**best_params_knn)
+knn_model.fit(X_train, y_train)
 
-    #grid_search_knn = GridSearchCV(estimator=knn_classifier, param_grid=param_grid_knn, cv=5, scoring='accuracy', n_jobs=-1)
-    #grid_search_knn.fit(X_train, y_train)
+# Evaluate KNN model
+y_pred_knn = knn_model.predict(X_test)
+accuracy_knn = accuracy_score(y_test, y_pred_knn)
+cross_val_knn = cross_val_score(knn_model, X, y, cv=5, scoring='accuracy')
 
-    #best_params = grid_search_knn.best_params_
-    #best_model = grid_search_knn.best_estimator_
+print(f"Accuracy: {accuracy_knn * 100:.2f}%")
+print(f"Cross-validation Accuracy: {cross_val_knn.mean() * 100:.2f}%")
 
-    best_model = KNeighborsClassifier(
-        algorithm=best_params['algorithm'],
-        leaf_size=best_params['leaf_size'],
-        metric=best_params['metric'],
-        n_neighbors=best_params['n_neighbors'],
-        weights=best_params['weights'],
-    )
+# Random Forest Regressor
+print("\nRandom Forest for Depression Value Prediction\n")
 
-    best_model.fit(X_train, y_train)
-    print("Best Hyperparameters For KNN:=", best_params)
+# Define features (X) and target (y) for Depression Value prediction
+X = df.drop(['depression_value', 'depression_label', 'feeling_depressed_or_hopeless'], axis=1)
+y = df['depression_value']
 
-    y_pred = best_model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
 
-    print("\nKNN for gpa\n")
-    print(f"Accuracy: {accuracy * 100:.2f}%")
+# Best hyperparameters for Random Forest
+best_params_rf = {
+    'bootstrap': False, 'criterion': 'squared_error', 'max_depth': 30, 'max_features': 'sqrt',
+    'min_samples_leaf': 1, 'min_samples_split': 2, 'n_estimators': 100, 'n_jobs': -1
+}
 
-    cross_val_accuracy = cross_val_score(best_model, X, y, cv=5, scoring='accuracy')
-    print(f"Cross-validation Accuracy: {cross_val_accuracy.mean() * 100:.2f}%")
+# Initialize Random Forest Regressor
+rf_model = RandomForestRegressor(**best_params_rf)
+rf_model.fit(X_train, y_train)
 
-    #
-    #
-    #
-    #
-    #random forest
-    #
-    #
-    #
-    #
-    #Best Hyperparameters For Random Forest:
-    # {'bootstrap': False, 'criterion': 'squared_error', 'max_depth': 30, 'max_features': 'sqrt',
-    # 'min_samples_leaf': 1, 'min_samples_split': 2, 'n_estimators': 100, 'n_jobs': -1}
-    print("\nRandom Forest\n")
+# Evaluate Random Forest model
+y_pred_rf = rf_model.predict(X_test)
+mse_rf = mean_squared_error(y_test, y_pred_rf)
+r2_rf = r2_score(y_test, y_pred_rf)
+cross_val_mse_rf = cross_val_score(rf_model, X, y, cv=5, scoring='neg_mean_squared_error')
+cross_val_r2_rf = cross_val_score(rf_model, X, y, cv=5, scoring='r2')
 
-    param_grid_rf = {
-        'n_estimators': [100, 200, 300],
-        'max_features': ['auto', 'sqrt', 'log2'],
-        'max_depth': [None, 10, 20, 30],
-        'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4],
-        'bootstrap': [True, False],
-        'criterion': ['squared_error', 'absolute_error', 'friedman_mse', 'poisson'],
-        'n_jobs': [-1]
-    }
+print(f"Mean Squared Error: {mse_rf:.2f}")
+print(f"R-squared: {r2_rf:.2f}")
+print(f"Cross-validation MSE: {-cross_val_mse_rf.mean():.2f}")
+print(f"Cross-validation R-squared: {cross_val_r2_rf.mean():.2f}")
 
-    #from grid search
-    best_params = {'bootstrap': False,
-                   'criterion': 'squared_error',
-                   'max_depth': 30,
-                   'max_features': 'sqrt',
-                   'min_samples_leaf': 1,
-                   'min_samples_split': 2,
-                   'n_estimators': 100,
-                   'n_jobs': -1}
+# Gradient Boosting Regressor
+print("\nGradient Boosting Regressor for Depression Value Prediction\n")
 
-    rf_regressor = RandomForestRegressor(
-        bootstrap=best_params['bootstrap'],
-        criterion=best_params['criterion'],
-        max_depth=best_params['max_depth'],
-        max_features=best_params['max_features'],
-        min_samples_leaf=best_params['min_samples_leaf'],
-        min_samples_split=best_params['min_samples_split'],
-        n_estimators=best_params['n_estimators'],
-        n_jobs=best_params['n_jobs']
-    )
+# Initialize Gradient Boosting Regressor
+gboost_model = GradientBoostingRegressor(n_estimators=100, random_state=random_state)
+gboost_model.fit(X_train, y_train)
 
-    X = df.drop(['depression_value', 'depression_label', 'feeling_depressed_or_hopeless'], axis=1)
-    y = df['depression_value']
+# Evaluate Gradient Boosting Regressor
+y_pred_gboost = gboost_model.predict(X_test)
+mse_gboost = mean_squared_error(y_test, y_pred_gboost)
+r2_gboost = r2_score(y_test, y_pred_gboost)
+cross_val_mse_gboost = cross_val_score(gboost_model, X, y, cv=5, scoring='neg_mean_squared_error')
+cross_val_r2_gboost = cross_val_score(gboost_model, X, y, cv=5, scoring='r2')
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
+print(f"Mean Squared Error: {mse_gboost:.2f}")
+print(f"R-squared: {r2_gboost:.2f}")
+print(f"Cross-validation MSE: {-cross_val_mse_gboost.mean():.2f}")
+print(f"Cross-validation R-squared: {cross_val_r2_gboost.mean():.2f}")
 
-    rf_regressor.fit(X_train, y_train)
-    #rf_regressor = RandomForestRegressor()
+# Now we plot the comparison of R-squared and MSE for each model
+algorithms = ['Random Forest', 'Gradient Boosting']
+r2_scores = [r2_rf, r2_gboost]
+mse_values = [mse_rf, mse_gboost]
 
-    #grid_search_rf = GridSearchCV(estimator=rf_regressor, param_grid=param_grid_rf, cv=5,
-                                  #scoring='neg_mean_squared_error', n_jobs=-1)
-    #grid_search_rf.fit(X_train, y_train)
+# Create subplots for comparison
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
 
+# Plot for R-squared scores
+ax[0].bar(algorithms, r2_scores, color=['green', 'orange'])
+ax[0].set_title('R-squared Comparison')
+ax[0].set_ylabel('R-squared')
 
+# Plot for Mean Squared Errors
+ax[1].bar(algorithms, mse_values, color=['green', 'orange'])
+ax[1].set_title('Mean Squared Error Comparison')
+ax[1].set_ylabel('MSE')
 
-    #best_params = grid_search_rf.best_params_
-    #best_model_rf = grid_search_rf.best_estimator_
-
-    print("Best Hyperparameters For Random Forest:", best_params)
-
-    #y_pred = best_model_rf.predict(X_test)
-    y_pred = rf_regressor.predict(X_test)
-
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    print(f"Mean Squared Error: {mse:.2f}")
-    print(f"R-squared: {r2:.2f}")
-
-    cross_val_mse = cross_val_score(rf_regressor, X, y, cv=5, scoring='neg_mean_squared_error')
-    cross_val_r2 = cross_val_score(rf_regressor, X, y, cv=5, scoring='r2')
-
-    print(f"Cross-validation Mean Squared Error: {-cross_val_mse.mean():.2f}")
-    print(f"Cross-validation R-squared: {cross_val_r2.mean():.2f}")
-    #
-    #
-    #
-    #
-    #
-    #Gradient boost
-    #
-    #
-    #
-    #
-    #
-    print("\nGradient Boosting Regressor\n")
-
-    X = df.drop(['depression_value', 'depression_label', 'feeling_depressed_or_hopeless'], axis=1)
-    y = df['depression_value']
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
-
-    gradient_boost = GradientBoostingRegressor(n_estimators=100, random_state=random_state)
-    gradient_boost.fit(X_train, y_train)
-
-    y_pred = gradient_boost.predict(X_test)
-
-    print(f"Mean Squared Error: {mse:.2f}")
-    print(f"R-squared: {r2:.2f}")
-
-    cross_val_mse_g_boost = cross_val_score(gradient_boost, X, y, cv=5, scoring='neg_mean_squared_error')
-    cross_val_r2_g_boost = cross_val_score(gradient_boost, X, y, cv=5, scoring='r2')
-
-    print(f"Cross-validation Mean Squared Error: {-cross_val_mse_g_boost.mean():.2f}%")
-    print(f"Cross-validation R-squared: {cross_val_r2_g_boost.mean():.2f}%")
-
-
-
-
-
+plt.tight_layout()
+plt.show()
